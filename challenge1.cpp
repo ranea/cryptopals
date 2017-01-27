@@ -14,6 +14,7 @@
 #include <cassert>
 
 using byte = uint8_t;
+static_assert(sizeof(byte) == 1);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Character encoding
