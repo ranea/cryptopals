@@ -1,11 +1,18 @@
-CXX=/usr/bin/clang++
-CXXFLAGS=-std=c++1z
-LDFLAGS=-Wall -Wextra
+CXX := clang++
 
-all: challenge1
+CXXFLAGS := -std=c++1z
+LDFLAGS := -Wall -Wextra
 
-challenge1:
-	$(CXX) $(CXXFLAGS) challenge1.cpp -o challenge1 $(LDFLAGS)
+SOURCES = challenge1.cpp \
+    tests.cpp
+
+OBJECTS = $(SOURCES:.cpp=.o)
+EXECUTABLE = tests
+
+all: $(OBJECTS) $(EXECUTABLE)
+
+%: %.o
+	$(CXX) -o $@ $< $(CXXFLAGS) $(LDFLAGS)
 
 clean:
-	rm -f $(OUT)
+	-rm -f $(EXECUTABLE) $(OBJECTS) *~
