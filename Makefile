@@ -10,6 +10,7 @@ OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = challenges
 
 all: $(OBJECTS) $(EXECUTABLE)
+	./$(EXECUTABLE)
 
 %: %.o
 	$(CXX) -o $@ $< $(CXXFLAGS) $(LDFLAGS)
