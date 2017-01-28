@@ -178,6 +178,21 @@ std::vector<byte> single_byte_xor(const std::vector<byte> &lhs, byte rhs) {
   return result;
 }
 
+std::vector<byte> repeating_key_xor(const std::vector<byte> &lhs,
+                                    const std::vector<byte> &rhs) {
+  assert(lhs.size() >= rhs.size());
+
+  std::vector<byte> result = lhs;
+
+  auto rhs_it = rhs.begin();
+  for (auto &b : result) {
+    b ^= *rhs_it;
+    rhs_it = (rhs_it == rhs.end() - 1) ? rhs.begin() : rhs_it + 1;
+  }
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Decrypting xor ciphers
 ///////////////////////////////////////////////////////////////////////////////

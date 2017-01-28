@@ -31,11 +31,25 @@ TEST_CASE("Challege2.") {
 TEST_CASE("Challege3.") {
   auto ciphertext = string_to_bytes(
       "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736");
-  auto plaintext = string_to_bytes("Cooking MC's like a pound of bacon",
-                                         Encoding::ascii);
+  auto plaintext =
+      string_to_bytes("Cooking MC's like a pound of bacon", Encoding::ascii);
   byte key = 'X';
   auto best_dec = decrypt_single_byte_xor(ciphertext);
 
   REQUIRE(best_dec.key == key);
   REQUIRE(best_dec.plaintext == plaintext);
+}
+
+TEST_CASE("Challege4.") {
+  auto plaintext = string_to_bytes("Burning 'em, if you ain't quick and "
+                                   "nimble\nI go crazy when I hear a cymbal",
+                                   Encoding::ascii);
+  auto key = string_to_bytes("ICE", Encoding::ascii);
+  auto ciphertext =
+      string_to_bytes("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c"
+                      "2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b"
+                      "2027630c692b20283165286326302e27282f",
+                      Encoding::hex);
+
+  REQUIRE(repeating_key_xor(plaintext, key) == ciphertext);
 }
