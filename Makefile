@@ -4,10 +4,10 @@ CXXFLAGS := -std=c++1z
 LDFLAGS := -Wall -Wextra
 
 SOURCES = utilities.cpp \
-    challenges.cpp
+    main.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
-EXECUTABLE = challenges
+EXECUTABLE = main
 
 all: $(OBJECTS) $(EXECUTABLE)
 	./$(EXECUTABLE)
