@@ -25,6 +25,9 @@ constexpr bool is_lower(byte b) { return 'a' <= b && b <= 'z'; }
 constexpr bool is_digit(byte b) { return '0' <= b && b <= '9'; }
 
 namespace base64 {
+static constexpr std::experimental::string_view base64_alphabet(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 64);
+
 constexpr bool is_valid_base64_char(char c) {
   return is_upper(c) || is_lower(c) || is_digit(c) || c == '+' || c == '/';
 }
@@ -52,10 +55,7 @@ constexpr unsigned int base64_to_int(char c) {
 constexpr char int_to_base64(unsigned int i) {
   assert(0 <= i && i < 64);
 
-  constexpr std::experimental::string_view alphabet(
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 64);
-
-  return alphabet[i];
+  return base64_alphabet[i];
 }
 }
 
@@ -65,7 +65,7 @@ enum class Encoding { hex, ascii, base64 };
 // Byte vector functions
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<byte> string_to_byte_vector(const std::string &s,
+std::vector<byte> string_to_byte_vector(std::experimental::string_view s,
                                         Encoding mode = Encoding::hex) {
   std::vector<byte> byte_vector;
 
@@ -74,7 +74,7 @@ std::vector<byte> string_to_byte_vector(const std::string &s,
     assert(s.size() % 2 == 0); // 2 hex digits per 1 byte
     byte_vector.reserve(s.size() / 2);
     for (size_t i = 0; i < s.size(); i += 2) {
-      byte_vector.push_back(stoi(s.substr(i, 2), nullptr, 16));
+      byte_vector.push_back(stoi(std::string(s.substr(i, 2)), nullptr, 16));
     }
     break;
   }
@@ -152,4 +152,28 @@ std::string byte_vector_to_string(std::vector<byte> byte_vector,
   }
 
   return s;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Xor functions
+///////////////////////////////////////////////////////////////////////////////
+
+std::vector<byte> fixed_xor(const std::vector<byte> &lhs,
+                            const std::vector<byte> &rhs) {
+  assert(lhs.size() == rhs.size());
+
+  std::vector<byte> result;
+  result.reserve(lhs.size());
+  std::transform(lhs.begin(), lhs.end(), rhs.begin(),
+                 std::back_inserter(result), std::bit_xor<byte>());
+  return result;
+}
+
+std::vector<byte> single_byte_xor(const std::vector<byte> &lhs, byte rhs) {
+
+  std::vector<byte> result;
+  result.reserve(lhs.size());
+  std::transform(lhs.begin(), lhs.end(), std::back_inserter(result),
+                 [rhs](byte b) { return b ^ rhs; });
+  return result;
 }

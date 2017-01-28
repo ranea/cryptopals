@@ -19,3 +19,11 @@ TEST_CASE("Challege1 extended.") {
   REQUIRE(byte_vector_to_string(hex_v, Encoding::ascii) == ascii_s);
   REQUIRE(byte_vector_to_string(hex_v, Encoding::base64) == base64_s);
 }
+
+TEST_CASE("Challege2.") {
+  auto lhs = string_to_byte_vector("1c0111001f010100061a024b53535009181c");
+  auto rhs = string_to_byte_vector("686974207468652062756c6c277320657965");
+  auto result = string_to_byte_vector("746865206b696420646f6e277420706c6179");
+
+  REQUIRE(fixed_xor(lhs, rhs) == result);
+}
