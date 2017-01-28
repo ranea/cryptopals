@@ -1,10 +1,9 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <climits>
 #include <experimental/string_view>
 #include <iostream>
-// #include <iterator>
-#include <climits>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -66,8 +65,8 @@ enum class Encoding { hex, ascii, base64 };
 // Byte vector functions
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<byte> string_to_byte_vector(std::experimental::string_view s,
-                                        Encoding mode = Encoding::hex) {
+std::vector<byte> string_to_bytes(std::experimental::string_view s,
+                                  Encoding mode = Encoding::hex) {
   std::vector<byte> byte_vector;
 
   switch (mode) {
@@ -85,7 +84,7 @@ std::vector<byte> string_to_byte_vector(std::experimental::string_view s,
     break;
   }
   case Encoding::base64: {
-    assert(s.size() % 4 == 0); // 4 base64 char per 3 bytes
+    assert(s.size() % 4 == 0); // 4 base64 chars per 3 bytes
     byte_vector.reserve((s.size() / 4) * 3);
 
     for (auto str_it = s.begin(); str_it != s.end(); str_it += 4) {
@@ -111,8 +110,8 @@ std::vector<byte> string_to_byte_vector(std::experimental::string_view s,
   return byte_vector;
 }
 
-std::string byte_vector_to_string(std::vector<byte> byte_vector,
-                                  Encoding mode = Encoding::hex) {
+std::string bytes_to_string(std::vector<byte> byte_vector,
+                            Encoding mode = Encoding::hex) {
   std::string s;
 
   switch (mode) {
@@ -188,7 +187,7 @@ struct LetterCount {
   unsigned int num_letters;
 };
 
-LetterCount get_letter_counts(const std::vector<byte> &byte_vector) {
+LetterCount count_letters(const std::vector<byte> &byte_vector) {
   LetterCount letter_count = {}; // default value initilization
 
   for (auto b : byte_vector) {
@@ -204,16 +203,16 @@ LetterCount get_letter_counts(const std::vector<byte> &byte_vector) {
   return letter_count;
 }
 
-float get_chi_squared_statistic(const std::vector<byte> &byte_vector) {
-  auto letter_count = get_letter_counts(byte_vector);
+double chi_squared_statistic(const std::vector<byte> &byte_vector) {
+  auto letter_count = count_letters(byte_vector);
 
-  static constexpr std::array<float, 26> expected_frequencies{
+  static constexpr std::array<double, 26> expected_frequencies{
       {0.08167, 0.01492, 0.02782, 0.04253, 0.12702, 0.02228, 0.02015,
        0.06094, 0.06966, 0.00153, 0.00772, 0.04025, 0.02406, 0.06749,
        0.07507, 0.01929, 0.00095, 0.05987, 0.06327, 0.09056, 0.02758,
        0.00978, 0.02360, 0.00150, 0.01974, 0.00074}}; // wikipedia
 
-  float chi_statistic = 0.0;
+  double chi_statistic = 0.0;
   for (auto i = 0; i < 26; i++) {
     auto o_i = letter_count.counts[i]; // observations
     auto e_i = letter_count.num_letters *
@@ -233,12 +232,12 @@ SingleByteXorDecryption
 decrypt_single_byte_xor(const std::vector<byte> &ciphertext) {
   byte best_key = 0;
   auto best_plaintext = single_byte_xor(ciphertext, best_key);
-  auto best_chi_statistic = get_chi_squared_statistic(best_plaintext);
+  auto best_chi_statistic = chi_squared_statistic(best_plaintext);
 
-  for (auto i = 1; i < 256; i++) {
+  for (auto i = 1; i < 256; i++) { // 1 byte represent 256 values
     byte new_key = i;
     auto new_plaintext = single_byte_xor(ciphertext, new_key);
-    auto new_chi_statistic = get_chi_squared_statistic(new_plaintext);
+    auto new_chi_statistic = chi_squared_statistic(new_plaintext);
 
     if (new_chi_statistic < best_chi_statistic) {
       best_key = new_key;
