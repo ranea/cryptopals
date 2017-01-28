@@ -3,11 +3,11 @@ CXX := clang++
 CXXFLAGS := -std=c++1z
 LDFLAGS := -Wall -Wextra
 
-SOURCES = challenge1.cpp \
-    tests.cpp
+SOURCES = utilities.cpp \
+    challenges.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
-EXECUTABLE = tests
+EXECUTABLE = challenges
 
 all: $(OBJECTS) $(EXECUTABLE)
 
