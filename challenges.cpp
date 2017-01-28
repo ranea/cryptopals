@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "challenge1.cpp"
+#include "utilities.cpp"
 
 TEST_CASE("Challege1 extended.") {
   std::string ascii_s = "I'm killing your brain like a poisonous mushroom";
