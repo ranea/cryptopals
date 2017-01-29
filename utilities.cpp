@@ -3,6 +3,7 @@
 #include <bitset>
 #include <climits>
 #include <experimental/string_view>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <sstream>
@@ -262,4 +263,18 @@ decrypt_single_byte_xor(const std::vector<byte> &ciphertext) {
   }
 
   return {best_plaintext, byte(best_key)};
+}
+
+std::vector<byte>
+detect_single_byte_xor(std::experimental::string_view filename) {
+  std::vector<byte> worst_english_text;
+  double worst_chi_statistic = -1; // get lower double
+
+  std::ifstream myfile(filename.data());
+  std::string line;
+  while (std::getline(myfile, line)) {
+    // stuffd
+  }
+
+  return worst_english_text;
 }
