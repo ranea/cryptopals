@@ -34,19 +34,34 @@ TEST_CASE("Challenge 3.") {
   auto plaintext =
       string_to_bytes("Cooking MC's like a pound of bacon", Encoding::ascii);
   byte key = 'X';
-  auto best_dec = decrypt_single_byte_xor(ciphertext);
+  auto decrypted_key = decrypt_single_byte_xor(ciphertext)[0];
 
-  REQUIRE(best_dec.key == key);
-  REQUIRE(best_dec.plaintext == plaintext);
+  REQUIRE(decrypted_key == key);
+  REQUIRE(single_byte_xor(ciphertext, decrypted_key) == plaintext);
 }
 
 TEST_CASE("Challenge 4.") {
-  detect_single_byte_xor("4.txt");
-  // auto best_line = detect_single_byte_xor("4.txt");
-  // std::cout << bytes_to_string(best_line.dec.plaintext, Encoding::ascii)
-  //           << '\n';
-  // REQUIRE(best_line.dec.plaintext ==
-  //         string_to_bytes("Now that the party is jumping\n"));
+  std::string plainline = "Now that the party is jumping\n";
+  auto best_lines = detect_single_byte_xor<2>("4.txt");
+  bool line_found = false;
+
+  std::ifstream input("4.txt");
+  std::string cipherline;
+  for (unsigned int i = 0; std::getline(input, cipherline); i++) {
+    if (std::find(best_lines.begin(), best_lines.end(), i) !=
+        best_lines.end()) {
+      auto bytes = string_to_bytes(cipherline);
+      auto decrypted_key = decrypt_single_byte_xor(bytes)[0];
+      auto new_plainline = bytes_to_string(
+          single_byte_xor(bytes, decrypted_key), Encoding::ascii);
+      if (plainline == new_plainline) {
+        line_found = true;
+        break;
+      }
+    }
+  }
+
+  REQUIRE(line_found == true);
 }
 
 TEST_CASE("Challenge 5.") {

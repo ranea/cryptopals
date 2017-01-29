@@ -120,7 +120,7 @@ std::vector<byte> string_to_bytes(std::experimental::string_view s,
   return byte_vector;
 }
 
-std::string bytes_to_string(std::vector<byte> byte_vector,
+std::string bytes_to_string(const std::vector<byte> &byte_vector,
                             Encoding mode = Encoding::hex) {
   std::string s;
 
@@ -162,6 +162,13 @@ std::string bytes_to_string(std::vector<byte> byte_vector,
   }
 
   return s;
+}
+
+std::ostream &operator<<(std::ostream &stream,
+                         const std::vector<byte> &byte_vector) {
+  std::string s = bytes_to_string(byte_vector, Encoding::ascii);
+  stream << s;
+  return stream;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -207,31 +214,31 @@ std::vector<byte> repeating_key_xor(const std::vector<byte> &lhs,
 // Decrypting xor ciphers
 ///////////////////////////////////////////////////////////////////////////////
 
-struct LetterCount {
-  std::array<unsigned int, 26> counts;
+struct LetterFrequencies {
+  std::array<unsigned int, 26> freqs;
   unsigned int num_letters;
 };
 
-LetterCount count_letters(const std::vector<byte> &byte_vector) {
-  LetterCount letter_count = {}; // default value initilization
+LetterFrequencies count_letters(const std::vector<byte> &byte_vector) {
+  LetterFrequencies lf = {}; // default value initilization
 
   for (auto b : byte_vector) {
     if (is_lower(b)) {
-      letter_count.counts[b - 'a'] += 1;
-      letter_count.num_letters++;
+      lf.freqs[b - 'a'] += 1;
+      lf.num_letters++;
     } else if (is_upper(b)) {
-      letter_count.counts[b - 'A'] += 1;
-      letter_count.num_letters++;
+      lf.freqs[b - 'A'] += 1;
+      lf.num_letters++;
     }
   }
 
-  return letter_count;
+  return lf;
 }
 
 double chi_squared_statistic(const std::vector<byte> &byte_vector) {
-  auto letter_count = count_letters(byte_vector);
+  auto lf = count_letters(byte_vector);
 
-  static constexpr std::array<double, 26> expected_frequencies{
+  static constexpr std::array<double, 26> english_freqs{
       {0.08167, 0.01492, 0.02782, 0.04253, 0.12702, 0.02228, 0.02015,
        0.06094, 0.06966, 0.00153, 0.00772, 0.04025, 0.02406, 0.06749,
        0.07507, 0.01929, 0.00095, 0.05987, 0.06327, 0.09056, 0.02758,
@@ -239,71 +246,76 @@ double chi_squared_statistic(const std::vector<byte> &byte_vector) {
 
   double chi_statistic = 0.0;
   for (auto i = 0; i < 26; i++) {
-    auto o_i = letter_count.counts[i]; // observations
-    auto e_i = letter_count.num_letters *
-               expected_frequencies[i]; // expected absolute frequency
+    auto o_i = lf.freqs[i];                       // observation
+    auto e_i = lf.num_letters * english_freqs[i]; // expected value
     chi_statistic += ((o_i - e_i) * (o_i - e_i)) / e_i;
   }
 
   return chi_statistic;
 }
 
-struct SingleByteXorDecryption {
-  std::vector<byte> plaintext;
-  byte key;
-  double chi_statistic;
-};
+template <unsigned short int num_keys = 1, bool only_printable = true,
+          bool return_chi_stats = true>
+std::array<byte, num_keys>
+decrypt_single_byte_xor(const std::vector<byte> &ciphertext,
+                        std::array<double, num_keys> &best_chis) {
+  using key_score = std::pair<double, byte>; // double first to sort later
+  std::array<key_score, 256> scores;
 
-template <bool only_printable_plaintext = true>
-SingleByteXorDecryption
-decrypt_single_byte_xor(const std::vector<byte> &ciphertext) {
-  byte best_key;
-  std::vector<byte> best_plaintext;
-  double best_chi_statistic = std::numeric_limits<double>::max();
-
-  for (auto i = 0; i < 256; i++) { // 1 byte represent 256 values
-    byte new_key = i;
-    auto new_plaintext = single_byte_xor(ciphertext, new_key);
-
-    if (!only_printable_plaintext || is_container_printable(new_plaintext)) {
-      auto new_chi_statistic = chi_squared_statistic(new_plaintext);
-
-      if (new_chi_statistic < best_chi_statistic) {
-        best_key = new_key;
-        best_plaintext = new_plaintext;
-        best_chi_statistic = new_chi_statistic;
-      }
+  for (auto i = 0; i < 256; i++) {
+    auto plaintext = single_byte_xor(ciphertext, i);
+    if (!only_printable || is_container_printable(plaintext)) {
+      scores[i] = key_score(chi_squared_statistic(plaintext), i);
+    } else { // only printable && !is_container_printable(new_plaintext)
+      scores[i] = key_score(std::numeric_limits<double>::max(), i);
     }
   }
 
-  return {best_plaintext, byte(best_key), best_chi_statistic};
+  std::partial_sort(scores.begin(), scores.begin() + num_keys, scores.end());
+
+  std::array<byte, num_keys> best_keys;
+  std::transform(scores.begin(), scores.begin() + num_keys, best_keys.begin(),
+                 [](auto ks) { return ks.second; });
+
+  if (return_chi_stats) {
+    std::transform(scores.begin(), scores.begin() + num_keys, best_chis.begin(),
+                   [](auto ks) { return ks.first; });
+  }
+
+  return best_keys;
 }
 
-struct LineSingleByteXorDecryption {
-  SingleByteXorDecryption dec;
-  unsigned int line_number;
-};
+// Simple version for non-returning chi statistics
+template <unsigned short int num_keys = 1, bool only_printable = true>
+std::array<byte, num_keys>
+decrypt_single_byte_xor(const std::vector<byte> &ciphertext) {
+  std::array<double, num_keys> null_array;
+  return decrypt_single_byte_xor<num_keys, only_printable, false>(ciphertext,
+                                                                  null_array);
+}
 
-// TODO: fix
-void detect_single_byte_xor(std::experimental::string_view filename) {
+template <unsigned short int num_lines = 1, bool only_printable = true>
+std::array<unsigned int, num_lines>
+detect_single_byte_xor(std::experimental::string_view filename) {
   std::ifstream input(filename.data());
-  std::string line;
+  std::string cipherline;
 
-  LineSingleByteXorDecryption best_line;
-  best_line.dec.chi_statistic = std::numeric_limits<double>::max();
-  unsigned int best_line_number;
+  using line_score = std::pair<double, unsigned int>; // double first to sort
+  std::vector<line_score> scores;
 
-  for (unsigned int i = 0; std::getline(input, line); i++) {
-    auto new_dec = decrypt_single_byte_xor(string_to_bytes(line));
+  for (unsigned int i = 0; std::getline(input, cipherline); i++) {
+    std::array<double, 1> best_chis;
+    decrypt_single_byte_xor<1, only_printable, true>(
+        string_to_bytes(cipherline), best_chis);
 
-    if (new_dec.chi_statistic < best_line.dec.chi_statistic) {
-      std::cout << new_dec.chi_statistic << ' '
-                << bytes_to_string(new_dec.plaintext, Encoding::ascii) << '\n';
-
-      best_line.dec = new_dec;
-      best_line_number = i;
-    }
+    scores.push_back(line_score(best_chis[0], i));
   }
 
-  // return best_line;
+  std::partial_sort(scores.begin(), scores.begin() + num_lines, scores.end());
+
+  std::array<unsigned int, num_lines> best_lines;
+  std::transform(scores.begin(), scores.begin() + num_lines, best_lines.begin(),
+                 [](auto ks) { return ks.second; });
+
+  return best_lines;
 }
