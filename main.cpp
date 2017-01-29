@@ -40,6 +40,15 @@ TEST_CASE("Challenge 3.") {
   REQUIRE(best_dec.plaintext == plaintext);
 }
 
+TEST_CASE("Challenge 4.") {
+  detect_single_byte_xor("4.txt");
+  // auto best_line = detect_single_byte_xor("4.txt");
+  // std::cout << bytes_to_string(best_line.dec.plaintext, Encoding::ascii)
+  //           << '\n';
+  // REQUIRE(best_line.dec.plaintext ==
+  //         string_to_bytes("Now that the party is jumping\n"));
+}
+
 TEST_CASE("Challenge 5.") {
   auto plaintext = string_to_bytes("Burning 'em, if you ain't quick and "
                                    "nimble\nI go crazy when I hear a cymbal",

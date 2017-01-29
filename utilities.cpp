@@ -5,6 +5,7 @@
 #include <experimental/string_view>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -24,6 +25,14 @@ static_assert(CHAR_BIT == 8);
 constexpr bool is_upper(byte b) { return 'A' <= b && b <= 'Z'; }
 constexpr bool is_lower(byte b) { return 'a' <= b && b <= 'z'; }
 constexpr bool is_digit(byte b) { return '0' <= b && b <= '9'; }
+constexpr bool is_printable(byte b) {
+  return (' ' <= b && b <= '~') || b == '\n';
+}
+
+template <class Container> bool is_container_printable(const Container &c) {
+  return std::find_if_not(std::begin(c), std::end(c), is_printable) ==
+         std::end(c);
+}
 
 namespace base64 {
 static constexpr std::experimental::string_view base64_alphabet(
@@ -242,39 +251,59 @@ double chi_squared_statistic(const std::vector<byte> &byte_vector) {
 struct SingleByteXorDecryption {
   std::vector<byte> plaintext;
   byte key;
+  double chi_statistic;
 };
 
+template <bool only_printable_plaintext = true>
 SingleByteXorDecryption
 decrypt_single_byte_xor(const std::vector<byte> &ciphertext) {
-  byte best_key = 0;
-  auto best_plaintext = single_byte_xor(ciphertext, best_key);
-  auto best_chi_statistic = chi_squared_statistic(best_plaintext);
+  byte best_key;
+  std::vector<byte> best_plaintext;
+  double best_chi_statistic = std::numeric_limits<double>::max();
 
-  for (auto i = 1; i < 256; i++) { // 1 byte represent 256 values
+  for (auto i = 0; i < 256; i++) { // 1 byte represent 256 values
     byte new_key = i;
     auto new_plaintext = single_byte_xor(ciphertext, new_key);
-    auto new_chi_statistic = chi_squared_statistic(new_plaintext);
 
-    if (new_chi_statistic < best_chi_statistic) {
-      best_key = new_key;
-      best_plaintext = new_plaintext;
-      best_chi_statistic = new_chi_statistic;
+    if (!only_printable_plaintext || is_container_printable(new_plaintext)) {
+      auto new_chi_statistic = chi_squared_statistic(new_plaintext);
+
+      if (new_chi_statistic < best_chi_statistic) {
+        best_key = new_key;
+        best_plaintext = new_plaintext;
+        best_chi_statistic = new_chi_statistic;
+      }
     }
   }
 
-  return {best_plaintext, byte(best_key)};
+  return {best_plaintext, byte(best_key), best_chi_statistic};
 }
 
-std::vector<byte>
-detect_single_byte_xor(std::experimental::string_view filename) {
-  std::vector<byte> worst_english_text;
-  double worst_chi_statistic = -1; // get lower double
+struct LineSingleByteXorDecryption {
+  SingleByteXorDecryption dec;
+  unsigned int line_number;
+};
 
-  std::ifstream myfile(filename.data());
+// TODO: fix
+void detect_single_byte_xor(std::experimental::string_view filename) {
+  std::ifstream input(filename.data());
   std::string line;
-  while (std::getline(myfile, line)) {
-    // stuffd
+
+  LineSingleByteXorDecryption best_line;
+  best_line.dec.chi_statistic = std::numeric_limits<double>::max();
+  unsigned int best_line_number;
+
+  for (unsigned int i = 0; std::getline(input, line); i++) {
+    auto new_dec = decrypt_single_byte_xor(string_to_bytes(line));
+
+    if (new_dec.chi_statistic < best_line.dec.chi_statistic) {
+      std::cout << new_dec.chi_statistic << ' '
+                << bytes_to_string(new_dec.plaintext, Encoding::ascii) << '\n';
+
+      best_line.dec = new_dec;
+      best_line_number = i;
+    }
   }
 
-  return worst_english_text;
+  // return best_line;
 }
