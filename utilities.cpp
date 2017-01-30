@@ -166,8 +166,7 @@ std::string bytes_to_string(const std::vector<byte> &byte_vector,
 
 std::ostream &operator<<(std::ostream &stream,
                          const std::vector<byte> &byte_vector) {
-  std::string s = bytes_to_string(byte_vector, Encoding::ascii);
-  stream << s;
+  stream << bytes_to_string(byte_vector, Encoding::ascii);
   return stream;
 }
 
@@ -220,7 +219,7 @@ struct LetterFrequencies {
 };
 
 LetterFrequencies count_letters(const std::vector<byte> &byte_vector) {
-  LetterFrequencies lf = {}; // default value initilization
+  LetterFrequencies lf = {}; // default value initilization (freqs = [0, ...])
 
   for (auto b : byte_vector) {
     if (is_lower(b)) {
