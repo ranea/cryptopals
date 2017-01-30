@@ -356,26 +356,34 @@ unsigned int edit_distance(Container1 c1, Container2 c2) {
                        std::end(c2));
 }
 
-template <unsigned int max_key_size = 40, bool only_printable = true>
+template <unsigned int num_keysize_blocks = 10>
+double key_size_score(const std::vector<byte> &v, unsigned int key_size) {
+  assert(v.size() / key_size >= num_keysize_blocks);
+  auto first1 = v.begin();
+  auto last1 = first1 + key_size; // equals to first2
+  auto last2 = last1 + key_size;
+
+  double distance = 0.0;
+  for (unsigned int i = 0; i < num_keysize_blocks; i++) {
+    auto offset = (last1 - first1) * i;
+    distance += edit_distance(first1 + offset, last1 + offset, last1 + offset,
+                              last2 + offset);
+  }
+  distance /= (num_keysize_blocks * key_size);
+  return distance;
+}
+
+template <unsigned int max_key_size = 40, bool only_printable = true,
+          unsigned int num_keysize_blocks = 10>
 std::vector<byte>
 break_repeating_key_xor(std::experimental::string_view filename) {
   auto bytes = file_to_bytes(filename, Encoding::base64);
 
-  static auto score = [&bytes](unsigned int key_size) {
-    auto first1 = bytes.begin();
-    auto last1 = first1 + key_size; // equals to first2
-    auto last2 = last1 + key_size;
-    auto offset = last1 - first1;
-    double distance = edit_distance(first1, last1, last1, last2) +
-                      edit_distance(first1 + offset, last1 + offset,
-                                    last1 + offset, last2 + offset);
-    return distance / (2 * key_size);
-  };
   unsigned int best_key_size = 2;
-  auto best_score = score(best_key_size);
+  auto best_score = key_size_score(bytes, best_key_size);
 
   for (unsigned int key_size = 3; key_size <= max_key_size; key_size++) {
-    auto new_score = score(key_size);
+    auto new_score = key_size_score(bytes, key_size);
 
     if (new_score < best_score) {
       best_key_size = key_size;
@@ -383,8 +391,6 @@ break_repeating_key_xor(std::experimental::string_view filename) {
     }
   }
 
-  // TODO: found automatically
-  best_key_size = 29;
   std::vector<byte> key;
   key.reserve(best_key_size);
   for (size_t i = 0; i < best_key_size; i++) {
@@ -395,9 +401,6 @@ break_repeating_key_xor(std::experimental::string_view filename) {
     }
     key.push_back(decrypt_single_byte_xor<1, only_printable>(block)[0]);
   }
-
-  // std::cout << "Key size: " << best_key_size << ", value: " << key << '\n';
-  // std::cout << repeating_key_xor(bytes, key);
 
   return key;
 }
