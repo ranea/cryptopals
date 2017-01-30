@@ -77,3 +77,13 @@ TEST_CASE("Challenge 5.") {
 
   REQUIRE(repeating_key_xor(plaintext, key) == ciphertext);
 }
+
+TEST_CASE("Challenge 6.") {
+  auto s1 = string_to_bytes("this is a test", Encoding::ascii);
+  auto s2 = string_to_bytes("wokka wokka!!!", Encoding::ascii);
+  REQUIRE(edit_distance(s1, s2) == 37);
+
+  auto key = break_repeating_key_xor("6.txt");
+  REQUIRE(bytes_to_string(key, Encoding::ascii) ==
+          "Terminator X: Bring the noise");
+}

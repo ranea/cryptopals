@@ -39,7 +39,8 @@ static constexpr std::experimental::string_view base64_alphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 64);
 
 constexpr bool is_valid_base64_char(char c) {
-  return is_upper(c) || is_lower(c) || is_digit(c) || c == '+' || c == '/';
+  return is_upper(c) || is_lower(c) || is_digit(c) || c == '+' || c == '/' ||
+         c == '=';
 }
 
 constexpr unsigned int base64_to_int(char c) {
@@ -57,8 +58,10 @@ constexpr unsigned int base64_to_int(char c) {
     return pos_0 + (c - '0');
   } else if (c == '+') {
     return 62;
-  } else {
+  } else if (c == '/') {
     return 63;
+  } else { // ==
+    return 0;
   }
 }
 
@@ -157,6 +160,11 @@ std::string bytes_to_string(const std::vector<byte> &byte_vector,
             stoi(binary_string.substr(i, 6), nullptr, 2)));
       }
     }
+
+    if (s.back() == 'A') { // padding whp
+      s.back() = '=';
+    }
+
     break;
   }
   }
@@ -168,6 +176,17 @@ std::ostream &operator<<(std::ostream &stream,
                          const std::vector<byte> &byte_vector) {
   stream << bytes_to_string(byte_vector, Encoding::ascii);
   return stream;
+}
+
+std::vector<byte> file_to_bytes(std::experimental::string_view filename,
+                                Encoding mode = Encoding::hex) {
+  std::string filetext;
+  std::ifstream infile(filename.data());
+  std::copy_if(std::istreambuf_iterator<char>{infile},
+               std::istreambuf_iterator<char>{}, std::back_inserter(filetext),
+               [](auto c) { return c != '\n'; });
+
+  return string_to_bytes(filetext, mode);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -317,4 +336,68 @@ detect_single_byte_xor(std::experimental::string_view filename) {
                  [](auto ks) { return ks.second; });
 
   return best_lines;
+}
+
+template <class InputIt1, class InputIt2>
+unsigned int edit_distance(InputIt1 first1, InputIt1 last1, InputIt2 first2,
+                           InputIt2 last2) {
+  assert(last1 - first1 == last2 - first2);
+
+  unsigned int distance = 0;
+  while (first1 != last1) {
+    distance += std::bitset<8>((*first1++) ^ (*first2++)).count();
+  }
+  return distance;
+}
+
+template <class Container1, class Container2>
+unsigned int edit_distance(Container1 c1, Container2 c2) {
+  return edit_distance(std::begin(c1), std::end(c1), std::begin(c2),
+                       std::end(c2));
+}
+
+template <unsigned int max_key_size = 40, bool only_printable = true>
+std::vector<byte>
+break_repeating_key_xor(std::experimental::string_view filename) {
+  auto bytes = file_to_bytes(filename, Encoding::base64);
+
+  static auto score = [&bytes](unsigned int key_size) {
+    auto first1 = bytes.begin();
+    auto last1 = first1 + key_size; // equals to first2
+    auto last2 = last1 + key_size;
+    auto offset = last1 - first1;
+    double distance = edit_distance(first1, last1, last1, last2) +
+                      edit_distance(first1 + offset, last1 + offset,
+                                    last1 + offset, last2 + offset);
+    return distance / (2 * key_size);
+  };
+  unsigned int best_key_size = 2;
+  auto best_score = score(best_key_size);
+
+  for (unsigned int key_size = 3; key_size <= max_key_size; key_size++) {
+    auto new_score = score(key_size);
+
+    if (new_score < best_score) {
+      best_key_size = key_size;
+      best_score = new_score;
+    }
+  }
+
+  // TODO: found automatically
+  best_key_size = 29;
+  std::vector<byte> key;
+  key.reserve(best_key_size);
+  for (size_t i = 0; i < best_key_size; i++) {
+    std::vector<byte> block;
+    block.reserve(bytes.size() / best_key_size);
+    for (size_t j = i; j < bytes.size(); j += best_key_size) {
+      block.push_back(bytes[j]);
+    }
+    key.push_back(decrypt_single_byte_xor<1, only_printable>(block)[0]);
+  }
+
+  // std::cout << "Key size: " << best_key_size << ", value: " << key << '\n';
+  // std::cout << repeating_key_xor(bytes, key);
+
+  return key;
 }
