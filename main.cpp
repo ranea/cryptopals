@@ -89,11 +89,10 @@ TEST_CASE("Challenge 6.") {
 }
 
 TEST_CASE("Challenge 7.") {
-  auto bytes = file_to_bytes("7.txt", Encoding::base64);
+  auto ciphertext = file_to_bytes("7.txt", Encoding::base64);
   auto key = string_to_bytes("YELLOW SUBMARINE", Encoding::ascii);
-  // std::cout << ctext.size() << '\n';
-  // openssl_c11::secure_string ctext(reinterpret_cast<char *>(bytes.data()),
-  //                                  bytes.size());
-  openssl_c11::smart_aes_decrypt(bytes_to_secure_string(bytes), key.data());
-  REQUIRE(1 == 1);
+  auto ptext =
+      bytes_to_string(decrypt_aes_128_ecb(ciphertext, key), Encoding::ascii);
+  ptext.resize(ptext.find_first_of('\n') - 1); // first line
+  REQUIRE(ptext == "I'm back and I'm ringin' the bell");
 }
