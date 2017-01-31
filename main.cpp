@@ -87,3 +87,13 @@ TEST_CASE("Challenge 6.") {
   REQUIRE(bytes_to_string(key, Encoding::ascii) ==
           "Terminator X: Bring the noise");
 }
+
+TEST_CASE("Challenge 7.") {
+  auto bytes = file_to_bytes("7.txt", Encoding::base64);
+  auto key = string_to_bytes("YELLOW SUBMARINE", Encoding::ascii);
+  // std::cout << ctext.size() << '\n';
+  // openssl_c11::secure_string ctext(reinterpret_cast<char *>(bytes.data()),
+  //                                  bytes.size());
+  openssl_c11::smart_aes_decrypt(bytes_to_secure_string(bytes), key.data());
+  REQUIRE(1 == 1);
+}

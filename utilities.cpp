@@ -12,6 +12,7 @@
 #include <vector>
 // uncomment to disable assert()
 // #define NDEBUG
+#include "evp-encrypt.cxx"
 #include <cassert>
 
 using byte = uint8_t;
@@ -403,4 +404,14 @@ break_repeating_key_xor(std::experimental::string_view filename) {
   }
 
   return key;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Openssl functions
+///////////////////////////////////////////////////////////////////////////////
+
+openssl_c11::secure_string
+bytes_to_secure_string(const std::vector<byte> &bytes) {
+  return openssl_c11::secure_string(
+      reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
