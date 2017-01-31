@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 // uncomment to disable assert()
 // #define NDEBUG
@@ -416,9 +417,55 @@ bytes_to_secure_string(const std::vector<byte> &bytes) {
       reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// AES functions
+///////////////////////////////////////////////////////////////////////////////
+
 std::vector<byte> decrypt_aes_128_ecb(const std::vector<byte> &ciphertext,
                                       const std::vector<byte> &key) {
   auto ss = openssl_c11::smart_aes_decrypt(bytes_to_secure_string(ciphertext),
                                            key.data());
   return std::vector<byte>(std::begin(ss), std::end(ss));
+}
+
+unsigned int aes_128_ecb_score(const std::vector<byte> &ciphertext) {
+  static constexpr auto block_size = 16;
+  assert(ciphertext.size() % block_size == 0);
+
+  std::unordered_map<std::string, unsigned int> block_count;
+  for (auto it = ciphertext.begin(); it != ciphertext.end(); it += block_size) {
+    ++block_count[std::string(it, it + block_size)];
+  }
+
+  unsigned int score = 0;
+  for (auto it = block_count.begin(); it != block_count.end(); ++it) {
+    score += (it->second - 1);
+  }
+
+  return score;
+}
+
+template <unsigned short int num_lines = 1>
+std::array<unsigned int, num_lines>
+detect_aes_128_ecb(std::experimental::string_view filename) {
+  std::ifstream input(filename.data());
+  std::string cipherline;
+
+  // TODO: change to a struct
+  using line_score = std::pair<unsigned int, unsigned int>; // first score
+  std::vector<line_score> scores;
+
+  for (unsigned int i = 0; std::getline(input, cipherline); i++) {
+    scores.push_back(
+        line_score(aes_128_ecb_score(string_to_bytes(cipherline)), i));
+  }
+
+  std::partial_sort(scores.begin(), scores.begin() + num_lines, scores.end(),
+                    std::greater<>());
+
+  std::array<unsigned int, num_lines> best_lines;
+  std::transform(scores.begin(), scores.begin() + num_lines, best_lines.begin(),
+                 [](auto ks) { return ks.second; });
+
+  return best_lines;
 }

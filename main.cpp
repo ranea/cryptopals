@@ -96,3 +96,27 @@ TEST_CASE("Challenge 7.") {
   ptext.resize(ptext.find_first_of('\n') - 1); // first line
   REQUIRE(ptext == "I'm back and I'm ringin' the bell");
 }
+
+TEST_CASE("Challenge 8.") {
+  // std::string plainline = "Now that the party is jumping\n";
+  auto best_lines = detect_aes_128_ecb<1>("8.txt");
+  std::string aes_line_start = "d880619740a8a19b";
+  bool line_found = false;
+
+  std::ifstream input("8.txt");
+  std::string cipherline;
+  for (unsigned int i = 0; std::getline(input, cipherline); i++) {
+    if (std::find(best_lines.begin(), best_lines.end(), i) !=
+        best_lines.end()) {
+
+      cipherline.resize(aes_line_start.size());
+
+      if (cipherline == aes_line_start) {
+        line_found = true;
+        break;
+      }
+    }
+  }
+
+  REQUIRE(line_found == true);
+}

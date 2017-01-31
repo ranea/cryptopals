@@ -2,7 +2,7 @@
 
 Check [cryptopals website](https://cryptopals.com/).
 
-- [ ] Set 1
+- [x] Set 1
     - [x] Challenge 1
     - [x] Challenge 2
     - [x] Challenge 3
@@ -10,4 +10,4 @@ Check [cryptopals website](https://cryptopals.com/).
     - [x] Challenge 5
     - [x] Challenge 6
     - [x] Challenge 7
-    - [ ] Challenge 8
+    - [x] Challenge 8

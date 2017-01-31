@@ -77,8 +77,8 @@ void gen_params(byte key[KEY_SIZE], byte iv[BLOCK_SIZE]) {
     throw std::runtime_error("RAND_bytes for iv failed");
 }
 
-template <unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16,
-          decltype(EVP_aes_128_ecb) AesCipher = EVP_aes_128_ecb>
+template <decltype(EVP_aes_128_ecb) AesCipher = EVP_aes_128_ecb,
+          unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16>
 void aes_encrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
                  const secure_string &ptext, secure_string &ctext) {
   EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
