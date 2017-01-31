@@ -12,11 +12,6 @@
 #include <openssl/rand.h>
 
 namespace openssl_c11 {
-// TODO: generalize with templates
-static constexpr unsigned int KEY_SIZE = 16; // 16 for AES-128, 32 for 256
-static constexpr unsigned int BLOCK_SIZE = 16;
-static constexpr auto aes_cipher = EVP_aes_128_ecb; // EVP_aes_256_cbc;
-
 ///////////////////////////////////////////////////////////////////////////////
 // Internal members
 ///////////////////////////////////////////////////////////////////////////////
@@ -71,12 +66,7 @@ typedef std::basic_string<char, std::char_traits<char>, zallocator<char>>
 using EVP_CIPHER_CTX_free_ptr =
     std::unique_ptr<EVP_CIPHER_CTX, decltype(&::EVP_CIPHER_CTX_free)>;
 
-void gen_params(byte key[KEY_SIZE], byte iv[BLOCK_SIZE]);
-void aes_encrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
-                 const secure_string &ptext, secure_string &ctext);
-void aes_decrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
-                 const secure_string &ctext, secure_string &rtext);
-
+template <unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16>
 void gen_params(byte key[KEY_SIZE], byte iv[BLOCK_SIZE]) {
   int rc = RAND_bytes(key, KEY_SIZE);
   if (rc != 1)
@@ -87,10 +77,12 @@ void gen_params(byte key[KEY_SIZE], byte iv[BLOCK_SIZE]) {
     throw std::runtime_error("RAND_bytes for iv failed");
 }
 
+template <unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16,
+          decltype(EVP_aes_128_ecb) AesCipher = EVP_aes_128_ecb>
 void aes_encrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
                  const secure_string &ptext, secure_string &ctext) {
   EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-  int rc = EVP_EncryptInit_ex(ctx.get(), aes_cipher(), NULL, key, iv);
+  int rc = EVP_EncryptInit_ex(ctx.get(), AesCipher(), NULL, key, iv);
   if (rc != 1)
     throw std::runtime_error("EVP_EncryptInit_ex failed");
 
@@ -112,14 +104,14 @@ void aes_encrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
   ctext.resize(out_len1 + out_len2);
 }
 
+template <decltype(EVP_aes_128_ecb) AesCipher = EVP_aes_128_ecb,
+          unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16>
 void aes_decrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
                  const secure_string &ctext, secure_string &rtext) {
   EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-  int rc = EVP_DecryptInit_ex(ctx.get(), aes_cipher(), NULL, key, iv);
+  int rc = EVP_DecryptInit_ex(ctx.get(), AesCipher(), NULL, key, iv);
   if (rc != 1)
     throw std::runtime_error("EVP_DecryptInit_ex failed");
-
-  // EVP_CIPHER_CTX_set_padding(ctx.get(), 0);
 
   // Recovered text contracts upto BLOCK_SIZE
   rtext.resize(ctext.size());
@@ -132,48 +124,24 @@ void aes_decrypt(const byte key[KEY_SIZE], const byte iv[BLOCK_SIZE],
 
   int out_len2 = (int)rtext.size() - out_len1;
   rc = EVP_DecryptFinal_ex(ctx.get(), (byte *)&rtext[0] + out_len1, &out_len2);
-  if (rc != 1) {
-    ERR_print_errors_fp(stderr);
+  if (rc != 1)
     throw std::runtime_error("EVP_DecryptFinal_ex failed");
-  }
 
   // Set recovered text size now that we know it
   rtext.resize(out_len1 + out_len2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Public
+// Public functions
 ///////////////////////////////////////////////////////////////////////////////
-secure_string smart_aes_decrypt(secure_string ctext, byte key[KEY_SIZE]) {
-  std::cout << "ciphertext:\n" << ctext << std::endl;
-  std::cout << "key:\n" << key[0] << "..." << key[KEY_SIZE - 1] << std::endl;
-
-  // Load the necessary cipher
-  EVP_add_cipher(aes_cipher());
-  ERR_load_crypto_strings();
-
-  // plaintext, ciphertext, recovered text
-  // ctext =
-  //    "Now is the time for all good men to come to the aide of their country";
+template <decltype(EVP_aes_128_ecb) AesCipher = EVP_aes_128_ecb,
+          unsigned int KEY_SIZE = 16, unsigned int BLOCK_SIZE = 16>
+secure_string smart_aes_decrypt(const secure_string &ctext,
+                                const byte key[KEY_SIZE]) {
+  EVP_add_cipher(AesCipher());
   secure_string ptext;
-
-  byte iv[BLOCK_SIZE] = {0};
-  // gen_params(key, iv);
-
-  // aes_encrypt(key, iv, ptext, ctext);
-  // int rc = RAND_bytes(iv, BLOCK_SIZE);
-  // if (rc != 1)
-  //   throw std::runtime_error("RAND_bytes for iv failed");
-  aes_decrypt(key, iv, ctext, ptext);
-
-  // OPENSSL_cleanse(key, KEY_SIZE);
-  // OPENSSL_cleanse(iv, BLOCK_SIZE);
-
-  std::cout << "plaintext:\n" << ptext << std::endl;
-  std::cout << "plaintext:\n" << ptext.size() << std::endl;
-  /* Remove error strings */
-  ERR_free_strings();
-
-  return ctext;
+  static constexpr byte iv[BLOCK_SIZE] = {0};
+  aes_decrypt<AesCipher, KEY_SIZE, BLOCK_SIZE>(key, iv, ctext, ptext);
+  return ptext;
 }
 }

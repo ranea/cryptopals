@@ -415,3 +415,10 @@ bytes_to_secure_string(const std::vector<byte> &bytes) {
   return openssl_c11::secure_string(
       reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
+
+std::vector<byte> decrypt_aes_128_ecb(const std::vector<byte> &ciphertext,
+                                      const std::vector<byte> &key) {
+  auto ss = openssl_c11::smart_aes_decrypt(bytes_to_secure_string(ciphertext),
+                                           key.data());
+  return std::vector<byte>(std::begin(ss), std::end(ss));
+}
