@@ -1,6 +1,6 @@
 ## Cryptopals crypto challenges with modern C++
 
-Check [cryptopals website](https://cryptopals.com/).
+See [cryptopals website](https://cryptopals.com/).
 
 - [x] Set 1
     - [x] Challenge 1
